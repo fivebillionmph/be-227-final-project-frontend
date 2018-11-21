@@ -1,1 +1,139 @@
+import os
+import rsa
+import json
+import requests
 
+_PRIVATE_KEY_FILE_NAME = "private-key"
+_PUBLIC_KEY_FILE_NAME = "public-key"
+_INFO_FILE_NAME = "info"
+
+def getKey(key_dir, name):
+	if not os.isdir(os.path.join(key_dir, name)):
+		raise Exception("key directory does not exist")
+
+	private_key_file = os.path.join(key_dir, name, _PRIVATE_KEY_FILE_NAME)
+	public_key_file = os.path.join(key_dir, name, _PUBLIC_KEY_FILE_NAME)
+	info_file = os.path.join(key_dir, name, _INFO_FILE_NAME)
+
+	if not os.isfile(private_key_file) or not os.isfile(public_key_file) or not os.isfile(info_file):
+		raise Exception("private or public key missing")
+
+	with open(private_key_file, mode="rb") as f:
+		keydata = f.read()
+		private_key = rsa.PrivateKey.load_pkcs1(keydata)
+
+	with open(public_key_file, mode="rb") as f:
+		keydata = f.read()
+		public_key = rsa.PublicKey.load_pkcs1(keydata)
+
+	with open(info_file, mode="r") as f:
+		infodata_raw = f.read()
+		infodata = json.loads(infodata_raw)
+		user_name = infodata["name"]
+		user_organization = infodata["organization"]
+
+	return Key(private_key, public_key, os.path.join(key_dir, name), user_name, user_organization)
+
+def genKey(key_dir, user_name, user_organization, host):
+	dir_path = os.path.join(key_dir, name)
+	os.mkdir(dir_path)
+	(public_key, private_key) = rsa.newkeys(2048)
+	info_data = {
+		"name": user_name,
+		"organization": user_organization,
+	}
+
+	private_key_file = os.path.join(dir_path, _PRIVATE_KEY_FILE_NAME)
+	public_key_file = os.path.join(dir_path, _PUBLIC_KEY_FILE_NAME)
+	info_file = os.path.join(dir_path, _INFO_FILE_NAME)
+
+	with open(private_key_file, mode="wb") as f:
+		f.write(private_key.save_pkcs1())
+
+	with open(public_key_file, mode="wb") as f:
+		f.write(public_key_file.save_pkcs1())
+
+	with open(info_file, mode="w") as f:
+		f.write(json.dumps(info_data))
+
+	return Key(private_key, public_key, dir_path, user_name, user_organization, host)
+
+class Host:
+	protocol = "http"
+
+	def __init__(self, fqdn):
+		self._fqdn = fqdn
+
+	def registerURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/register", "PUT")
+
+	def registerChallengeURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/register/challenge", "PUT")
+
+	def startSessionURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/session", "POST")
+
+	def startSessionChallengeURL(self):
+		return (self.protocol + "://" + self._fqdn + "a/session/challenge", "PUT")
+
+class Key:
+	def __init__(self, private_key, public_key, name, organization):
+		self._private_key = private_key
+		self._public_key = public_key
+		self._name = name
+		self._organization = organization
+
+	def publicKeyString(self):
+		return self._public_key.save_pkcs1().decode("utf-8")
+
+	def register(self, host):
+		url, method = host.registerURL()
+		req_data = {
+			"public_key": self.publicKeyString(),
+		}
+		response = requests.request(method, url, json=req_data)
+		if not response.ok {
+			raise Exception(response.text)
+		}
+		rjson = response.json()
+		crypt_message = rjson["message"].encode("utf-8")
+		message = rsa.decrypt(crypt_message, self._private_key).decode("utf-8")
+		signed_message = rsa.sign(message, self._private_key, "SHA-256").decode("utf-8")
+
+		url2, method2 = host.registerChallenge()
+		req_data2 = {
+			"signature": signed_message,
+			"index": rjson["index"],
+			"name": self._name,
+			"organization": self._organization,
+		}
+		response2 = requests.request(method2, url2, json=req_data2)
+		if not response2.ok:
+			raise Exception(response.text)
+
+	def startSession(self, host, port):
+		url, method = host.startSessionURL()
+		req_data = {
+			"public_key": self.publicKeyString()
+		}
+		response = request.request(method, url, json=req_data)
+		if not response.ok {
+			raise Exception(response.text)
+		}
+		rjson = response.json()
+		crypt_message = rjson["message"].encode("utf-8")
+		message = rsa.decrypt(crypt_message, self._private_key).decode("utf-8")
+		signed_message = rsa.sign(message, self._private_key, "SHA-256").decode("utf-8")
+
+		url2, method2 = host.startSessionChallengeURL()
+		req_data2 = {
+			"signature": signed_message,
+			"index": rjson["index"],
+			"port": port,
+		}
+		response2 = requests.request(method2, url2, json=req_data2)
+		if not repsonse2.ok:
+			raise Exception(response.text)
+		rjson2 = response2.json()
+
+		return rjson2["session_id"]
