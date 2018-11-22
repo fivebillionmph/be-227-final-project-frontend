@@ -2,6 +2,7 @@ import os
 import rsa
 import json
 import requests
+import base64
 
 _PRIVATE_KEY_FILE_NAME = "private-key"
 _PUBLIC_KEY_FILE_NAME = "public-key"
@@ -34,7 +35,7 @@ def getKey(key_dir, name):
 
 	return Key(private_key, public_key, os.path.join(key_dir, name), user_name, user_organization)
 
-def genKey(key_dir, user_name, user_organization, host):
+def genKey(key_dir, name, user_name, user_organization):
 	dir_path = os.path.join(key_dir, name)
 	os.mkdir(dir_path)
 	(public_key, private_key) = rsa.newkeys(2048)
@@ -51,12 +52,12 @@ def genKey(key_dir, user_name, user_organization, host):
 		f.write(private_key.save_pkcs1())
 
 	with open(public_key_file, mode="wb") as f:
-		f.write(public_key_file.save_pkcs1())
+		f.write(public_key.save_pkcs1())
 
 	with open(info_file, mode="w") as f:
 		f.write(json.dumps(info_data))
 
-	return Key(private_key, public_key, dir_path, user_name, user_organization, host)
+	return Key(private_key, public_key, dir_path, user_name, user_organization)
 
 class Host:
 	protocol = "http"
@@ -77,14 +78,18 @@ class Host:
 		return (self.protocol + "://" + self._fqdn + "a/session/challenge", "PUT")
 
 class Key:
-	def __init__(self, private_key, public_key, name, organization):
+	def __init__(self, private_key, public_key, dir_path, name, organization):
 		self._private_key = private_key
 		self._public_key = public_key
+		self._dir_path = dir_path
 		self._name = name
 		self._organization = organization
 
 	def publicKeyString(self):
 		return self._public_key.save_pkcs1().decode("utf-8")
+
+	def publicKeyBinary(self):
+		return self._public_key.save_pkcs1(format="DER")
 
 	def register(self, host):
 		url, method = host.registerURL()
@@ -92,15 +97,15 @@ class Key:
 			"public_key": self.publicKeyString(),
 		}
 		response = requests.request(method, url, json=req_data)
-		if not response.ok {
+		if not response.ok:
 			raise Exception(response.text)
-		}
 		rjson = response.json()
-		crypt_message = rjson["message"].encode("utf-8")
-		message = rsa.decrypt(crypt_message, self._private_key).decode("utf-8")
-		signed_message = rsa.sign(message, self._private_key, "SHA-256").decode("utf-8")
+		crypt_message = base64.b64decode(rjson["message"])
+		message = rsa.decrypt(crypt_message, self._private_key)
+		signature = rsa.sign(message, self._private_key, "SHA-256")
+		signed_message = base64.b64encode(signature).decode("utf-8")
 
-		url2, method2 = host.registerChallenge()
+		url2, method2 = host.registerChallengeURL()
 		req_data2 = {
 			"signature": signed_message,
 			"index": rjson["index"],
@@ -109,17 +114,16 @@ class Key:
 		}
 		response2 = requests.request(method2, url2, json=req_data2)
 		if not response2.ok:
-			raise Exception(response.text)
+			raise Exception(response2.text)
 
 	def startSession(self, host, port):
 		url, method = host.startSessionURL()
 		req_data = {
-			"public_key": self.publicKeyString()
+			"public_key": self.publicKeyString(),
 		}
 		response = request.request(method, url, json=req_data)
-		if not response.ok {
+		if not response.ok:
 			raise Exception(response.text)
-		}
 		rjson = response.json()
 		crypt_message = rjson["message"].encode("utf-8")
 		message = rsa.decrypt(crypt_message, self._private_key).decode("utf-8")

@@ -1,7 +1,12 @@
-import securep2p227 as sp
+import os
+import shutil
+from securep2p227 import keys as sp
 
-key = sp.genKey("test-data", "test1")
+if os.path.isdir("test-data/test1"):
+	shutil.rmtree("test-data/test1")
 
-host = Host("securep2p.fivebillionmph.com")
+key = sp.genKey("test-data", "test1", "Dr. McCoy", "NCC-1701 USS Enterprise")
+
+host = sp.Host("securep2p.fivebillionmph.com")
 
 key.register(host)
