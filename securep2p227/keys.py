@@ -164,7 +164,10 @@ class Session:
 
 	def getSignatures(self):
 		url, method = self._host.getSignaturesURL()
-		response = requests.request(method, url + "?key=" + self._key.publicKeyString())
+		req_data = {
+			"key": self._key.publicKeyString()
+		}
+		response = requests.request(method, url, json=req_data)
 		if not response.ok:
 			raise Exception(response.text)
 		return response.json()
