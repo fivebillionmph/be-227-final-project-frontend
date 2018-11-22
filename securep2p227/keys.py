@@ -75,7 +75,13 @@ class Host:
 		return (self.protocol + "://" + self._fqdn + "/a/session", "POST")
 
 	def startSessionChallengeURL(self):
-		return (self.protocol + "://" + self._fqdn + "a/session/challenge", "PUT")
+		return (self.protocol + "://" + self._fqdn + "/a/session/challenge", "PUT")
+
+	def getSessionsURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/sessions", "GET")
+
+	def getSignaturesURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/signatures", "GET")
 
 class Key:
 	def __init__(self, private_key, public_key, dir_path, name, organization):
@@ -87,9 +93,6 @@ class Key:
 
 	def publicKeyString(self):
 		return self._public_key.save_pkcs1().decode("utf-8")
-
-	def publicKeyBinary(self):
-		return self._public_key.save_pkcs1(format="DER")
 
 	def register(self, host):
 		url, method = host.registerURL()
@@ -121,13 +124,14 @@ class Key:
 		req_data = {
 			"public_key": self.publicKeyString(),
 		}
-		response = request.request(method, url, json=req_data)
+		response = requests.request(method, url, json=req_data)
 		if not response.ok:
 			raise Exception(response.text)
 		rjson = response.json()
-		crypt_message = rjson["message"].encode("utf-8")
-		message = rsa.decrypt(crypt_message, self._private_key).decode("utf-8")
-		signed_message = rsa.sign(message, self._private_key, "SHA-256").decode("utf-8")
+		crypt_message = base64.b64decode(rjson["message"])
+		message = rsa.decrypt(crypt_message, self._private_key)
+		signature = rsa.sign(message, self._private_key, "SHA-256")
+		signed_message = base64.b64encode(signature).decode("utf-8")
 
 		url2, method2 = host.startSessionChallengeURL()
 		req_data2 = {
@@ -136,8 +140,31 @@ class Key:
 			"port": port,
 		}
 		response2 = requests.request(method2, url2, json=req_data2)
-		if not repsonse2.ok:
-			raise Exception(response.text)
+		if not response2.ok:
+			raise Exception(response2.text)
 		rjson2 = response2.json()
 
 		return rjson2["session_id"]
+
+class Session:
+	def __init__(self, host, key):
+		self._key = key
+		self._host = host
+		self._session_id = None
+
+	def startSession(self, port):
+		self._session_id = self._key.startSession(self._host, port)
+
+	def getActiveSessions(self):
+		url, method = self._host.getSessionsURL()
+		response = requests.request(method, url)
+		if not response.ok:
+			raise Exception(response.text)
+		return response.json()
+
+	def getSignatures(self):
+		url, method = self._host.getSignaturesURL()
+		response = requests.request(method, url + "?key=" + self._key.publicKeyString())
+		if not response.ok:
+			raise Exception(response.text)
+		return response.json()
