@@ -7,5 +7,6 @@ setup(
 	install_requires = [
 		"rsa",
 		"requests",
+		"cryptography"
 	],
 )
