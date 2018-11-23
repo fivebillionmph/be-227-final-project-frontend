@@ -1,3 +1,5 @@
+import time
+import random
 import os
 import rsa
 import json
@@ -59,6 +61,9 @@ def genKey(key_dir, name, user_name, user_organization):
 
 	return Key(private_key, public_key, dir_path, user_name, user_organization)
 
+def publicKeyToString(public_key):
+	return public_key.save_pkcs1().decode("utf-8")
+
 class Host:
 	protocol = "http"
 
@@ -83,6 +88,9 @@ class Host:
 	def getSignaturesURL(self):
 		return (self.protocol + "://" + self._fqdn + "/a/signatures", "GET")
 
+	def getSignURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/sign", "POST")
+
 class Key:
 	def __init__(self, private_key, public_key, dir_path, name, organization):
 		self._private_key = private_key
@@ -92,7 +100,7 @@ class Key:
 		self._organization = organization
 
 	def publicKeyString(self):
-		return self._public_key.save_pkcs1().decode("utf-8")
+		return publicKeyToString(self._public_key)
 
 	def register(self, host):
 		url, method = host.registerURL()
@@ -146,6 +154,23 @@ class Key:
 
 		return rjson2["session_id"]
 
+	def signKey(self, public_key, host, start_time, end_time):
+		start_unix = int(time.mktime(start_time.timetuple()))
+		end_unix = int(time.mktime(end_time.timetuple()))
+		host = host._fqdn
+		message_key = str(random.randint(0, 1000000000))
+		message = {
+			"public_key": publicKeyToString(public_key),
+			"start_time": start_unix,
+			"end_time": end_unix,
+			"check_server": host,
+			"message_key": message_key,
+		}
+		message_str = message["public_key"] + str(message["start_time"]) + str(message["end_time"]) + message["check_server"] + message["message_key"]
+		signature = rsa.sign(message_str.encode("utf-8"), self._private_key, "SHA-256")
+		signature_base64 = base64.b64encode(signature).decode("utf-8")
+		return (message, signature_base64)
+
 class Session:
 	def __init__(self, host, key):
 		self._key = key
@@ -171,3 +196,16 @@ class Session:
 		if not response.ok:
 			raise Exception(response.text)
 		return response.json()
+
+	def signKeyAndSubmit(self, public_key, start_time, end_time):
+		message, signature = self._key.signKey(public_key, self._host, start_time, end_time)
+		url, method = self._host.getSignURL()
+		req_data = {
+			"signature": signature,
+			"message": message,
+			"session_id": self._session_id,
+			"signee_public_key": publicKeyToString(public_key),
+		}
+		response = requests.request(method, url, json=req_data)
+		if not response.ok:
+			raise Exception(response.text)
