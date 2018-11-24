@@ -289,7 +289,7 @@ class Permission:
 		except:
 			return False
 
-		return rsa.verify(message_string, signature, signer_public_key)
+		return False if rsa.verify(message_string.encode("utf-8"), signature, signer_public_key) == False else True
 
 	def getAuthorizedKeys(self):
 		return self._config["authorized_keys"]
