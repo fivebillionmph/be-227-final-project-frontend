@@ -11,6 +11,15 @@ _PUBLIC_KEY_FILE_NAME = "public-key"
 _INFO_FILE_NAME = "info"
 
 def getKey(key_dir, name):
+	"""Gets an existing key
+
+	Parameters
+	----------
+	key_dir : str
+		The directory where all keys are stored.  This should be the same for all keys
+	name : str
+		The name of the key, this needs to be unique for each key
+	"""
 	if not os.path.isdir(os.path.join(key_dir, name)):
 		raise Exception("key directory does not exist")
 
@@ -38,6 +47,17 @@ def getKey(key_dir, name):
 	return Key(private_key, public_key, os.path.join(key_dir, name), user_name, user_organization)
 
 def genKey(key_dir, name, user_name, user_organization):
+	"""Creates a new key
+
+	Parameters
+	----------
+	key_dir : str
+		The directory where all keys are stored.  This should be the same for all keys
+	name : str
+		The name of the key, this needs to be unique for each key
+	user_name : str
+	user_organization : str
+	"""
 	dir_path = os.path.join(key_dir, name)
 	os.mkdir(dir_path)
 	(public_key, private_key) = rsa.newkeys(2048)
@@ -71,9 +91,17 @@ def signatureMessageToString(message):
 	return message["public_key"] + str(message["start_time"]) + str(message["end_time"]) + message["check_server"] + message["message_key"]
 
 class Host:
+	"""A class for the key host and generating urls
+	"""
 	protocol = "http"
 
 	def __init__(self, fqdn):
+		"""
+		Parameters
+		----------
+		fqdn : str
+			The host that will be connected to for sessions and signed keys (just use securep2p.fivebillionmph.com)
+		"""
 		self._fqdn = fqdn
 
 	def registerURL(self):
@@ -98,6 +126,8 @@ class Host:
 		return (self.protocol + "://" + self._fqdn + "/a/sign", "POST")
 
 class Key:
+	"""A class for holding the public and private key
+	"""
 	def __init__(self, private_key, public_key, dir_path, name, organization):
 		self._private_key = private_key
 		self._public_key = public_key
