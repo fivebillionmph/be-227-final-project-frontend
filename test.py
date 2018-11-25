@@ -47,7 +47,7 @@ session4.startSession(8083)
 # sign a key
 now = datetime.datetime.now()
 tomorrow = now + datetime.timedelta(days=1)
-session1.signKeyAndSubmit(key2._public_key, now, tomorrow)
+key1.signKeyAndSubmit(key2._public_key, host, now, tomorrow)
 
 # get the active sessions
 active_sessions = session1.getActiveSessions()

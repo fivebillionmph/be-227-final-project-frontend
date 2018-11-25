@@ -190,22 +190,30 @@ class Key:
 
 		return rjson2["session_id"]
 
-	def signKey(self, public_key, host, start_time, end_time):
+	def signKeyAndSubmit(self, public_key, host, start_time, end_time):
 		start_unix = int(time.mktime(start_time.timetuple()))
 		end_unix = int(time.mktime(end_time.timetuple()))
-		host = host._fqdn
 		message_key = str(random.randint(0, 1000000000))
 		message = {
 			"public_key": publicKeyToPemString(public_key),
 			"start_time": start_unix,
 			"end_time": end_unix,
-			"check_server": host,
+			"check_server": host._fqdn,
 			"message_key": message_key,
 		}
 		message_str = signatureMessageToString(message)
 		signature = rsa.sign(message_str.encode("utf-8"), self._private_key, "SHA-256")
 		signature_base64 = base64.b64encode(signature).decode("utf-8")
-		return (message, signature_base64)
+		url, method = host.getSignURL()
+		req_data = {
+			"signature": signature_base64,
+			"message": message,
+			"signee_public_key": publicKeyToPemString(public_key),
+			"signer_public_key": publicKeyToPemString(self._public_key),
+		}
+		response = requests.request(method, url, json=req_data)
+		if not response.ok:
+			raise Exception(response.text)
 
 	def encrypt(self, public_key_string, message):
 		public_key = pemStringToPublicKey(public_key_string)
@@ -239,19 +247,6 @@ class Session:
 		if not response.ok:
 			raise Exception(response.text)
 		return response.json()
-
-	def signKeyAndSubmit(self, public_key, start_time, end_time):
-		message, signature = self._key.signKey(public_key, self._host, start_time, end_time)
-		url, method = self._host.getSignURL()
-		req_data = {
-			"signature": signature,
-			"message": message,
-			"session_id": self._session_id,
-			"signee_public_key": publicKeyToPemString(public_key),
-		}
-		response = requests.request(method, url, json=req_data)
-		if not response.ok:
-			raise Exception(response.text)
 
 class Permission:
 	def __init__(self, permission_dir, name):
