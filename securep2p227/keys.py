@@ -90,6 +90,24 @@ def pemStringToPublicKey(pem_string):
 def signatureMessageToString(message):
 	return message["public_key"] + str(message["start_time"]) + str(message["end_time"]) + message["check_server"] + message["message_key"]
 
+def searchKeys(host, query = None):
+	url, method = host.getSearchKeysURL()
+	if query is not None:
+		url += "?q=" + query
+	response = requests.request(method, url)
+	if response.ok:
+		return response.json()
+	return None
+
+def searchSessions(host, query = None):
+	url, method = host.getSessionsURL()
+	if query is not None:
+		url += "?q=" + query
+	response = requests.request(method, url)
+	if not response.ok:
+		raise Exception(response.text)
+	return response.json()
+
 class Host:
 	"""A class for the key host and generating urls
 	"""
@@ -113,6 +131,9 @@ class Host:
 	def startSessionURL(self):
 		return (self.protocol + "://" + self._fqdn + "/a/session", "POST")
 
+	def stopSessionURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/session", "DELETE")
+
 	def startSessionChallengeURL(self):
 		return (self.protocol + "://" + self._fqdn + "/a/session/challenge", "PUT")
 
@@ -124,6 +145,9 @@ class Host:
 
 	def getSignURL(self):
 		return (self.protocol + "://" + self._fqdn + "/a/sign", "POST")
+
+	def getSearchKeysURL(self):
+		return (self.protocol + "://" + self._fqdn + "/a/keys", "GET")
 
 class Key:
 	"""A class for holding the public and private key
@@ -231,12 +255,16 @@ class Session:
 	def startSession(self, port):
 		self._session_id = self._key.startSession(self._host, port)
 
-	def getActiveSessions(self):
-		url, method = self._host.getSessionsURL()
-		response = requests.request(method, url)
+	def stopSession(self):
+		if self._session_id is None:
+			return
+		url, method = self._host.stopSessionURL()
+		req_data = {
+			"session_id": self._session_id,
+		}
+		response = requests.request(method, url, json=req_data)
 		if not response.ok:
 			raise Exception(response.text)
-		return response.json()
 
 	def getSignatures(self):
 		url, method = self._host.getSignaturesURL()

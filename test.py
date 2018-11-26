@@ -44,13 +44,20 @@ key4.register(host)
 session4 = sp.Session(host, key4)
 session4.startSession(8083)
 
+# search keys
+enterprise_keys = sp.searchKeys(host, "enterprise")
+all_keys = sp.searchKeys(host)
+
 # sign a key
 now = datetime.datetime.now()
 tomorrow = now + datetime.timedelta(days=1)
 key1.signKeyAndSubmit(key2._public_key, host, now, tomorrow)
 
 # get the active sessions
-active_sessions = session1.getActiveSessions()
+active_sessions_all = sp.searchSessions(host)
+active_sessions_ds9 = sp.searchSessions(host, "deep space")
+print("all sessions:", len(active_sessions_all["sessions"]))
+print("deep space nine sessions:", len(active_sessions_ds9["sessions"]))
 
 # get my signatures
 my_signatures = session2.getSignatures()
@@ -61,3 +68,7 @@ permission3.addAuthorizedKey(sp.publicKeyToPemString(key1._public_key), "Dr. McC
 print("Dr. McCoy", permission3.authorize(sp.publicKeyToPemString(key1._public_key), None, None, None))
 print("Dr. Crusher", permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"]))
 print("Dr. Evil", permission3.authorize(sp.publicKeyToPemString(key4._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"]))
+
+session3.stopSession()
+active_sessions_ds9 = sp.searchSessions(host, "deep space")
+print("deep space nine sessions after ending:", len(active_sessions_ds9["sessions"]))

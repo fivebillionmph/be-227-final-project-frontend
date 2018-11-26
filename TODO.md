@@ -1,0 +1,5 @@
+- [x] get keys
+- [x] search sessions
+- [x] end sessions
+- [ ] public key hash
+- [ ] encrypt data
