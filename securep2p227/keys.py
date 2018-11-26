@@ -5,6 +5,7 @@ import rsa
 import json
 import requests
 import base64
+import hashlib
 
 _PRIVATE_KEY_FILE_NAME = "private-key"
 _PUBLIC_KEY_FILE_NAME = "public-key"
@@ -107,6 +108,24 @@ def searchSessions(host, query = None):
 	if not response.ok:
 		raise Exception(response.text)
 	return response.json()
+
+def publicKeyFingerprint(public_key):
+	public_key_pem = publicKeyToPemString(public_key)
+	m = hashlib.md5()
+	m.update(public_key_pem.encode("utf-8"))
+	h = m.hexdigest().lower()
+	return h
+
+def prettyFingerprint(fingerprint):
+	new_fingerprint = ""
+	for i in range(len(fingerprint)):
+		if i != 0 and i % 2 == 0:
+			new_fingerprint += " : "
+		new_fingerprint += fingerprint[i]
+	return new_fingerprint
+
+def encryptMessageB64(public_key, message):
+	return base64.b64encode(rsa.encrypt(message.encode("utf-8"), public_key)).decode("utf-8")
 
 class Host:
 	"""A class for the key host and generating urls
@@ -245,6 +264,12 @@ class Key:
 
 	def decrypt(self, crypt_message):
 		return rsa.decrypt(message, self._private)
+
+	def publicKeyFingerprint(self):
+		return publicKeyFingerprint(self._public_key)
+
+	def decryptMessageB64(self, encrypted_message):
+		return rsa.decrypt(base64.b64decode(encrypted_message), self._private_key).decode("utf-8")
 
 class Session:
 	def __init__(self, host, key):

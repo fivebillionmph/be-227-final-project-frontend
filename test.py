@@ -17,6 +17,10 @@ host = sp.Host("securep2p.fivebillionmph.com")
 # create a new key with test fake data
 key1 = sp.genKey("test-data/keys", "test1", "Dr. Leonard McCoy", "NCC-1701 USS Enterprise")
 
+# key fingerprint
+print(key1.publicKeyFingerprint())
+print(sp.prettyFingerprint(key1.publicKeyFingerprint()))
+
 # register our key to the host
 key1.register(host)
 
@@ -72,3 +76,9 @@ print("Dr. Evil", permission3.authorize(sp.publicKeyToPemString(key4._public_key
 session3.stopSession()
 active_sessions_ds9 = sp.searchSessions(host, "deep space")
 print("deep space nine sessions after ending:", len(active_sessions_ds9["sessions"]))
+
+# send encrypted message
+encrypted_message = sp.encryptMessageB64(key1._public_key, "Dodgers win WS 2019")
+print(encrypted_message)
+decrypted_message = key1.decryptMessageB64(encrypted_message)
+print(decrypted_message)
