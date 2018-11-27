@@ -69,9 +69,9 @@ my_signatures = session2.getSignatures()
 permission3 = sp.Permission("test-data/permissions", "ds9-files")
 permission3.addAuthorizedKey(sp.publicKeyToPemString(key1._public_key), "Dr. McCoy", "USS Enterprise")
 # print(permission3.getAuthorizedKeys())
-print("Dr. McCoy", permission3.authorize(sp.publicKeyToPemString(key1._public_key), None, None, None))
-print("Dr. Crusher", permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"]))
-print("Dr. Evil", permission3.authorize(sp.publicKeyToPemString(key4._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"]))
+print("Dr. McCoy", permission3.authorize(sp.publicKeyToPemString(key1._public_key), None, None, None, "Multiple Patient Identifiers (C-CDAR2.1).xml"))
+print("Dr. Crusher", permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"], "Multiple Patient Identifiers (C-CDAR2.1).xml"))
+print("Dr. Evil", permission3.authorize(sp.publicKeyToPemString(key4._public_key), my_signatures["signatures"][0]["signature"], json.loads(my_signatures["signatures"][0]["message"]), my_signatures["signatures"][0]["signer"]["public_key"], "Multiple Patient Identifiers (C-CDAR2.1).xml"))
 
 session3.stopSession()
 active_sessions_ds9 = sp.searchSessions(host, "deep space")
@@ -82,3 +82,9 @@ encrypted_message = sp.encryptMessageB64(key1._public_key, "Dodgers win WS 2019"
 print(encrypted_message)
 decrypted_message = key1.decryptMessageB64(encrypted_message)
 print(decrypted_message)
+
+# sign key for specific patient
+key1.signKeyAndSubmitCDAPatientID(key2._public_key, host, now, tomorrow, "1.3.6.1.4.1.1234.13.20.9999.1.3.7.3")
+my_signatures = session2.getSignatures()
+print(permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Patient Previous Name(C-CDA2.1).xml"))
+print(permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Multiple Patient Identifiers (C-CDAR2.1).xml"))

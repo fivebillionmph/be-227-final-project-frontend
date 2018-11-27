@@ -6,6 +6,9 @@ import json
 import requests
 import base64
 import hashlib
+import bcrypt
+import re
+import xml.etree.ElementTree as ET
 
 _PRIVATE_KEY_FILE_NAME = "private-key"
 _PUBLIC_KEY_FILE_NAME = "public-key"
@@ -89,7 +92,7 @@ def pemStringToPublicKey(pem_string):
 	return rsa.PublicKey.load_pkcs1(pem_string.encode("utf-8"))
 
 def signatureMessageToString(message):
-	return message["public_key"] + str(message["start_time"]) + str(message["end_time"]) + message["check_server"] + message["message_key"]
+	return message["public_key"] + str(message["start_time"]) + str(message["end_time"]) + message["check_server"] + message["message_key"] + message["modifiers"]
 
 def searchKeys(host, query = None):
 	url, method = host.getSearchKeysURL()
@@ -126,6 +129,17 @@ def prettyFingerprint(fingerprint):
 
 def encryptMessageB64(public_key, message):
 	return base64.b64encode(rsa.encrypt(message.encode("utf-8"), public_key)).decode("utf-8")
+
+def parseModifiers(modifiers_string):
+	# only match CAD ID for now
+	m = re.match(r"CDA\(ID=(.*)\)", modifiers_string)
+	if len(m.groups()) > 0:
+		return {
+			"cda": {
+				"encrypted_id": m.group(1)
+			}
+		}
+	return None
 
 class Host:
 	"""A class for the key host and generating urls
@@ -233,7 +247,7 @@ class Key:
 
 		return rjson2["session_id"]
 
-	def signKeyAndSubmit(self, public_key, host, start_time, end_time):
+	def signKeyAndSubmit(self, public_key, host, start_time, end_time, modifiers = ""):
 		start_unix = int(time.mktime(start_time.timetuple()))
 		end_unix = int(time.mktime(end_time.timetuple()))
 		message_key = str(random.randint(0, 1000000000))
@@ -243,6 +257,7 @@ class Key:
 			"end_time": end_unix,
 			"check_server": host._fqdn,
 			"message_key": message_key,
+			"modifiers": modifiers,
 		}
 		message_str = signatureMessageToString(message)
 		signature = rsa.sign(message_str.encode("utf-8"), self._private_key, "SHA-256")
@@ -257,6 +272,11 @@ class Key:
 		response = requests.request(method, url, json=req_data)
 		if not response.ok:
 			raise Exception(response.text)
+
+	def signKeyAndSubmitCDAPatientID(self, public_key, host, start_time, end_time, patient_id):
+		encrypted_id = bcrypt.hashpw(patient_id.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+		modifiers = "CDA(ID=" + encrypted_id + ")"
+		self.signKeyAndSubmit(public_key, host, start_time, end_time, modifiers)
 
 	def encrypt(self, public_key_string, message):
 		public_key = pemStringToPublicKey(public_key_string)
@@ -315,6 +335,7 @@ class Permission:
 			self._config = {
 				"authorized_keys": [],
 			}
+			self.updateConfigFile()
 
 	def updateConfigFile(self):
 		config_data = json.dumps(self._config)
@@ -335,7 +356,7 @@ class Permission:
 		})
 		self.updateConfigFile()
 
-	def authorize(self, public_key_string, signature_base64, message, signer_public_key_string):
+	def authorize(self, public_key_string, signature_base64, message, signer_public_key_string, filepath):
 		for ak in self._config["authorized_keys"]:
 			if ak["key"] == public_key_string:
 				return True
@@ -365,6 +386,30 @@ class Permission:
 		try:
 			signature = base64.b64decode(signature_base64)
 		except:
+			return False
+
+		correct_modifier = True
+		if message["modifiers"] != "":
+			correct_modifier = False
+			try:
+				modifiers = parseModifiers(message["modifiers"])
+				if modifiers is None:
+					return False # could not modifiers
+				if "cda" in modifiers and "encrypted_id" in modifiers["cda"]:
+					encrypted_id = modifiers["cda"]["encrypted_id"]
+					tree = ET.parse(filepath)
+					patient_roles = tree.find("patientRole")
+					for patientid in patient_roles.findall("id"):
+						id_root = patientid.attrib["root"]
+						if bcrypt.checkpw(id_root.encode("utf-8"), encrypted_id.encode("utf-8")):
+							correct_modifier = True
+							break
+				else:
+					return False # invalid modifier
+			except Exception as e:
+				raise e
+				return False
+		if not correct_modifier:
 			return False
 
 		return False if rsa.verify(message_string.encode("utf-8"), signature, signer_public_key) == False else True
