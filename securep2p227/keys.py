@@ -400,14 +400,13 @@ class Permission:
 					tree = ET.parse(filepath)
 					patient_roles = tree.find("patientRole")
 					for patientid in patient_roles.findall("id"):
-						id_root = patientid.attrib["root"]
+						id_root = patientid.attrib["root"] + " - " + patientid.attrib["extension"]
 						if bcrypt.checkpw(id_root.encode("utf-8"), encrypted_id.encode("utf-8")):
 							correct_modifier = True
 							break
 				else:
 					return False # invalid modifier
-			except Exception as e:
-				raise e
+			except:
 				return False
 		if not correct_modifier:
 			return False
@@ -416,3 +415,13 @@ class Permission:
 
 	def getAuthorizedKeys(self):
 		return self._config["authorized_keys"]
+
+	def deleteAuthorizedKeysByName(self, name):
+		delete = []
+		for i in range(len(self._config["authorized_keys"])):
+			if self._config["authorized_keys"][i]["name"] == name:
+				delete.append(i)
+		delete.reverse()
+		for i in delete:
+			del self._config["authorized_keys"][i]
+		self.updateConfigFile()

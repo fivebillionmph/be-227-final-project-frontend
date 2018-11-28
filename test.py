@@ -4,6 +4,7 @@ import shutil
 import glob
 import datetime
 from securep2p227 import keys as sp
+import sys
 
 # delete the existing key
 for path in glob.glob("test-data/keys/*"):
@@ -84,7 +85,21 @@ decrypted_message = key1.decryptMessageB64(encrypted_message)
 print(decrypted_message)
 
 # sign key for specific patient
-key1.signKeyAndSubmitCDAPatientID(key2._public_key, host, now, tomorrow, "1.3.6.1.4.1.1234.13.20.9999.1.3.7.3")
+key1.signKeyAndSubmitCDAPatientID(key2._public_key, host, now, tomorrow, "1.3.6.1.4.1.1234.13.20.9999.1.3.7.3 - 2345")
 my_signatures = session2.getSignatures()
-print(permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Patient Previous Name(C-CDA2.1).xml"))
-print(permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Multiple Patient Identifiers (C-CDAR2.1).xml"))
+print("verify patient previouse name", permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Patient Previous Name(C-CDA2.1).xml"))
+print("verify patient mutiple identifiers", permission3.authorize(sp.publicKeyToPemString(key2._public_key), my_signatures["signatures"][1]["signature"], json.loads(my_signatures["signatures"][1]["message"]), my_signatures["signatures"][1]["signer"]["public_key"], "test-data/Multiple Patient Identifiers (C-CDAR2.1).xml"))
+
+
+print(json.dumps(key1._private_key.save_pkcs1().decode("utf-8"), indent=4).replace("\\n", "\n"))
+print(json.dumps(json.loads(my_signatures["signatures"][1]["message"]), indent=4).replace("\\n", "\n    "))
+sig = my_signatures["signatures"][1]["signature"]
+for i in range(len(sig)):
+	sys.stdout.write(sig[i])
+	if i != 0 and i % 40 == 0:
+		sys.stdout.write("\n")
+sys.stdout.write("\n")
+
+print(permission3.getAuthorizedKeys())
+permission3.deleteAuthorizedKeysByName("Dr. McCoy")
+print(permission3.getAuthorizedKeys())
