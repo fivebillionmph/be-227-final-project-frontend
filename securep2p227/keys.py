@@ -330,7 +330,7 @@ class Permission:
 			raise Exception("permission directory does not exist")
 
 		if os.path.isfile(self._file_path):
-			self._config = json.loads(open(path).read())
+			self._config = json.loads(open(self._file_path).read())
 		else:
 			self._config = {
 				"authorized_keys": [],
