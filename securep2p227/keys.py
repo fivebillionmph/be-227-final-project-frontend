@@ -425,3 +425,4 @@ class Permission:
 		for i in delete:
 			del self._config["authorized_keys"][i]
 		self.updateConfigFile()
+        return len(delete)
