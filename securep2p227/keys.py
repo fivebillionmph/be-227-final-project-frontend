@@ -400,7 +400,7 @@ class Permission:
 					tree = ET.parse(filepath)
 					patient_roles = tree.find("patientRole")
 					for patientid in patient_roles.findall("id"):
-						id_root = patientid.attrib["root"] + " - " + patientid.attrib["extension"]
+						id_root = patientid.attrib["root"] + "-" + patientid.attrib["extension"]
 						if bcrypt.checkpw(id_root.encode("utf-8"), encrypted_id.encode("utf-8")):
 							correct_modifier = True
 							break
