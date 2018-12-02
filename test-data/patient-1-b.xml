@@ -13,6 +13,7 @@
             <id root="1.3.6.1.4.1.1234.13.20.9999.1.3.7.4" extension="6789" assigningAuthorityName="Lawrence and Memorial: Westerly Hospital locally assigned Medical Record Number"/>
             <id root="1.3.6.1.4.1.1234.13.20.9999.1.3.7.3" extension="2345" assigningAuthorityName="LifeSpan: Buttler Hospital Locally-assigned Patient Account Number"/>
             <id root="1.3.6.1.4.1.1234.13.20.9999.1.3.7.6" extension="06726-161" assigningAuthorityName="Rhode Island Qyality Institute: CurrentCare HIE Locally-assigned Identifier"/>
+            <id root="123" extension="456" assigningAuthorityName="Starfleet"/>
             <!-- More ids may be used. -->
             <addr>
                 <streetAddressLine>1 Happy Valley Road</streetAddressLine>
@@ -62,5 +63,8 @@
                     <country>US</country>
                 </addr>
             </providerOrganization>
+            <rawData>
+                Here is raw data
+            </rawData>
         </patientRole>
     </recordTarget>
